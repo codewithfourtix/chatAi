@@ -1,35 +1,114 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useRef, useEffect } from "react";
+import axios from "axios";
+import "./App.css";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]); // Added scrollToBottom to dependencies
+
+  const generateResponse = async () => {
+    if (inputMessage.trim() === "") return;
+
+    setIsLoading(true);
+    const userMessage = { type: "user", content: inputMessage };
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
+    setInputMessage("");
+
+    try {
+      const response = await axios({
+        url: process.env.REACT_APP_GEMINI_API_URL,
+        method: "post",
+        data: {
+          contents: [
+            {
+              parts: [{ text: inputMessage }],
+            },
+          ],
+        },
+      });
+
+      const aiResponse = response.data.candidates[0].content.parts[0].text;
+      const aiMessage = { type: "ai", content: aiResponse };
+      setMessages((prevMessages) => [...prevMessages, aiMessage]);
+    } catch (error) {
+      console.error("Error generating response:", error);
+      const errorMessage = {
+        type: "error",
+        content: "An error occurred. Please try again.",
+      };
+      setMessages((prevMessages) => [...prevMessages, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      generateResponse();
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="chat-app">
+      <div className="chat-header">
+        <h1>AI Chat Assistant</h1>
+        <div className="creator-info">
+          <p className="creator-name">Built by Ali Zulfiqar</p>
+          <p className="creator-email">
+            For improvements, contact:
+            <a href="mailto:codewithfourtix@gmail.com">
+              codewithfourtix@gmail.com
+            </a>
+          </p>
+        </div>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+      <div className="chat-messages">
+        {messages.map((message, index) => (
+          <div key={index} className={`message ${message.type}`}>
+            <div className="message-content">{message.content}</div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="message ai">
+            <div className="message-content">
+              <div className="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+      <div className="chat-input">
+        <textarea
+          value={inputMessage}
+          onChange={(e) => setInputMessage(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="Type your message here..."
+          rows="3"
+        />
+        <button
+          onClick={generateResponse}
+          disabled={isLoading || inputMessage.trim() === ""}
+        >
+          Send
         </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;
