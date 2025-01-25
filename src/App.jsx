@@ -25,8 +25,9 @@ function App() {
     setInputMessage("");
 
     try {
+      const API_URL = import.meta.env.VITE_GEMINI_API_URL;
       const response = await axios({
-        url: process.env.REACT_APP_GEMINI_API_URL,
+        url: API_URL,
         method: "post",
         data: {
           contents: [
